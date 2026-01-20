@@ -1,12 +1,15 @@
 import { Header } from '@/components/Header';
-import { MintCard } from '@/components/MintCard';
+import { NFTBuilder } from '@/components/NFTBuilder';
+import { NFTGallery } from '@/components/NFTGallery';
 import { Features } from '@/components/Features';
 import { HowItWorks } from '@/components/HowItWorks';
 import { Footer } from '@/components/Footer';
 import { useWallet } from '@/hooks/useWallet';
+import { useNFTContract } from '@/hooks/useNFTContract';
 
 const Index = () => {
   const { error } = useWallet();
+  const { totalSupply, isContractDeployed } = useNFTContract();
 
   return (
     <div className="min-h-screen bg-background">
@@ -28,13 +31,18 @@ const Index = () => {
               Sepolia Testnet
             </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-foreground mb-6 leading-tight">
-              Mint Your First{' '}
+              Build Your Own{' '}
               <span className="gradient-text">NFT</span>
             </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-              A beginner-friendly DApp to create ERC-721 NFTs on the Sepolia testnet. 
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-4">
+              Create custom ERC-721 NFTs with your own name, description, and image. 
               No real ETH required — learn Web3 development hands-on.
             </p>
+            {isContractDeployed && (
+              <p className="text-sm text-primary font-medium">
+                {totalSupply} NFT{totalSupply !== 1 ? 's' : ''} minted in this collection
+              </p>
+            )}
           </div>
 
           {/* Wallet Error Alert */}
@@ -44,12 +52,15 @@ const Index = () => {
             </div>
           )}
 
-          {/* Mint Card */}
+          {/* NFT Builder */}
           <div className="flex justify-center mb-16">
-            <MintCard />
+            <NFTBuilder />
           </div>
         </div>
       </main>
+
+      {/* NFT Gallery */}
+      <NFTGallery />
 
       {/* How It Works */}
       <HowItWorks />
