@@ -12,7 +12,7 @@ export function MintCard() {
   const canMint = isConnected && isCorrectNetwork && !isMinting;
 
   const handleMint = () => {
-    mintNFT(tokenURI);
+    mintNFT('Quick Mint NFT', 'Minted via quick mint', '', tokenURI);
   };
 
   return (
@@ -25,10 +25,10 @@ export function MintCard() {
       </div>
 
       <h2 className="text-2xl font-display font-bold text-center text-foreground mb-2">
-        Mint Your NFT
+        Quick Mint NFT
       </h2>
       <p className="text-muted-foreground text-center text-sm mb-6">
-        Create your unique digital collectible on Sepolia Testnet
+        Create a quick NFT on Sepolia Testnet
       </p>
 
       {/* Token URI Input */}
@@ -134,7 +134,7 @@ export function MintCard() {
           ) : (
             <>
               <Sparkles className="w-5 h-5" />
-              Mint NFT
+              Quick Mint
             </>
           )}
         </Button>

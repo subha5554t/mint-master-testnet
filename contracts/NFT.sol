@@ -2,20 +2,20 @@
 pragma solidity ^0.8.20;
 
 // ============================================
-// NFT Minting Smart Contract
+// Enhanced NFT Minting Smart Contract
 // Deploy this contract using Remix IDE
 // ============================================
 
 // Import OpenZeppelin contracts
-// In Remix, these imports work automatically
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title MyNFT
- * @dev A simple ERC-721 NFT contract for minting unique tokens
- * @notice This contract allows users to mint NFTs with custom metadata URIs
+ * @dev An enhanced ERC-721 NFT contract with enumerable support
+ * @notice This contract allows users to mint NFTs and query all tokens
  * 
  * DEPLOYMENT INSTRUCTIONS:
  * 1. Open Remix IDE (https://remix.ethereum.org)
@@ -26,94 +26,165 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * 6. Copy the deployed contract address
  * 7. Update CONTRACT_ADDRESS in src/hooks/useNFTContract.ts
  */
-contract MyNFT is ERC721, ERC721URIStorage, Ownable {
+contract MyNFT is ERC721, ERC721URIStorage, ERC721Enumerable, Ownable {
     // ============ State Variables ============
     
     // Token ID counter - starts at 0 and increments with each mint
     uint256 private _tokenIdCounter;
 
+    // Mapping to store NFT metadata
+    struct NFTMetadata {
+        string name;
+        string description;
+        string imageUrl;
+        uint256 createdAt;
+        address creator;
+    }
+    
+    mapping(uint256 => NFTMetadata) public nftMetadata;
+
     // ============ Events ============
     
-    // Event emitted when a new NFT is minted
-    // Useful for tracking mints on Etherscan and in frontend
     event NFTMinted(
         address indexed minter,
         uint256 indexed tokenId,
-        string tokenURI
+        string tokenURI,
+        string name,
+        string description,
+        string imageUrl
     );
 
     // ============ Constructor ============
     
     /**
      * @dev Constructor sets the token name and symbol
-     * @notice The deployer becomes the initial owner
-     * 
-     * Token Name: "MyNFT" - displayed on marketplaces
-     * Token Symbol: "MNFT" - short identifier
      */
-    constructor() ERC721("MyNFT", "MNFT") Ownable(msg.sender) {
-        // Initialize counter at 0
-        // First minted token will have ID 0
+    constructor() ERC721("MyNFT Collection", "MNFT") Ownable(msg.sender) {
         _tokenIdCounter = 0;
     }
 
     // ============ Main Functions ============
     
     /**
-     * @dev Mints a new NFT to the caller's address
-     * @param _tokenURI The metadata URI for the NFT (e.g., IPFS link)
+     * @dev Mints a new NFT with custom metadata
+     * @param _tokenURI The metadata URI for the NFT
+     * @param _name The name of the NFT
+     * @param _description The description of the NFT
+     * @param _imageUrl The image URL of the NFT
      * @return The token ID of the newly minted NFT
-     * 
-     * @notice Anyone can call this function to mint an NFT
-     * @notice Each call creates a new unique token
-     * 
-     * Example tokenURI formats:
-     * - IPFS: "ipfs://QmYourHash/metadata.json"
-     * - HTTP: "https://yourserver.com/api/token/1"
      */
-    function mintNFT(string memory _tokenURI) public returns (uint256) {
-        // Step 1: Get current token ID
+    function mintNFT(
+        string memory _tokenURI,
+        string memory _name,
+        string memory _description,
+        string memory _imageUrl
+    ) public returns (uint256) {
         uint256 tokenId = _tokenIdCounter;
-        
-        // Step 2: Increment counter for next mint
-        // This ensures each token has a unique ID
         _tokenIdCounter++;
         
-        // Step 3: Mint the NFT to the caller (msg.sender)
-        // _safeMint checks if recipient can receive ERC721 tokens
         _safeMint(msg.sender, tokenId);
-        
-        // Step 4: Set the token URI (metadata link)
-        // This points to a JSON file with name, description, image, etc.
         _setTokenURI(tokenId, _tokenURI);
         
-        // Step 5: Emit event for tracking
-        // This appears in transaction logs on Etherscan
-        emit NFTMinted(msg.sender, tokenId, _tokenURI);
+        // Store metadata on-chain
+        nftMetadata[tokenId] = NFTMetadata({
+            name: _name,
+            description: _description,
+            imageUrl: _imageUrl,
+            createdAt: block.timestamp,
+            creator: msg.sender
+        });
         
-        // Step 6: Return the token ID to the caller
+        emit NFTMinted(msg.sender, tokenId, _tokenURI, _name, _description, _imageUrl);
+        
         return tokenId;
     }
 
     /**
+     * @dev Simple mint function for backwards compatibility
+     */
+    function mintNFTSimple(string memory _tokenURI) public returns (uint256) {
+        return mintNFT(_tokenURI, "Untitled NFT", "No description", "");
+    }
+
+    /**
      * @dev Returns the current token counter value
-     * @return The total number of NFTs minted
-     * 
-     * @notice Useful for displaying total supply on frontend
      */
     function getTokenCounter() public view returns (uint256) {
         return _tokenIdCounter;
     }
 
-    // ============ Required Overrides ============
-    // These are required because we inherit from multiple contracts
-    // that define the same functions
+    /**
+     * @dev Returns NFT metadata by token ID
+     */
+    function getNFTMetadata(uint256 tokenId) public view returns (
+        string memory name,
+        string memory description,
+        string memory imageUrl,
+        uint256 createdAt,
+        address creator,
+        string memory uri
+    ) {
+        require(tokenId < _tokenIdCounter, "Token does not exist");
+        NFTMetadata memory metadata = nftMetadata[tokenId];
+        return (
+            metadata.name,
+            metadata.description,
+            metadata.imageUrl,
+            metadata.createdAt,
+            metadata.creator,
+            tokenURI(tokenId)
+        );
+    }
 
     /**
-     * @dev Returns the token URI for a given token ID
-     * @param tokenId The ID of the token
-     * @return The metadata URI string
+     * @dev Returns all NFTs owned by an address
      */
+    function getOwnedTokens(address owner) public view returns (uint256[] memory) {
+        uint256 balance = balanceOf(owner);
+        uint256[] memory tokens = new uint256[](balance);
+        
+        for (uint256 i = 0; i < balance; i++) {
+            tokens[i] = tokenOfOwnerByIndex(owner, i);
+        }
+        
+        return tokens;
+    }
+
+    /**
+     * @dev Returns all NFTs with metadata (paginated)
+     */
+    function getAllNFTs(uint256 offset, uint256 limit) public view returns (
+        uint256[] memory tokenIds,
+        string[] memory names,
+        string[] memory descriptions,
+        string[] memory imageUrls,
+        address[] memory creators
+    ) {
+        uint256 total = _tokenIdCounter;
+        uint256 end = offset + limit;
+        if (end > total) end = total;
+        uint256 count = end > offset ? end - offset : 0;
+        
+        tokenIds = new uint256[](count);
+        names = new string[](count);
+        descriptions = new string[](count);
+        imageUrls = new string[](count);
+        creators = new address[](count);
+        
+        for (uint256 i = 0; i < count; i++) {
+            uint256 tokenId = offset + i;
+            tokenIds[i] = tokenId;
+            names[i] = nftMetadata[tokenId].name;
+            descriptions[i] = nftMetadata[tokenId].description;
+            imageUrls[i] = nftMetadata[tokenId].imageUrl;
+            creators[i] = nftMetadata[tokenId].creator;
+        }
+        
+        return (tokenIds, names, descriptions, imageUrls, creators);
+    }
+
+    // ============ Required Overrides ============
+
     function tokenURI(uint256 tokenId)
         public
         view
@@ -123,42 +194,27 @@ contract MyNFT is ERC721, ERC721URIStorage, Ownable {
         return super.tokenURI(tokenId);
     }
 
-    /**
-     * @dev Checks if the contract supports a given interface
-     * @param interfaceId The interface identifier (ERC-165)
-     * @return True if the interface is supported
-     */
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC721, ERC721URIStorage)
+        override(ERC721, ERC721URIStorage, ERC721Enumerable)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
     }
-}
 
-// ============================================
-// SAMPLE TOKEN METADATA (store on IPFS)
-// ============================================
-/*
-{
-    "name": "My First NFT",
-    "description": "This is my first NFT minted on Sepolia testnet!",
-    "image": "ipfs://QmYourImageHash",
-    "attributes": [
-        {
-            "trait_type": "Creator",
-            "value": "Your Name"
-        },
-        {
-            "trait_type": "Edition",
-            "value": "1"
-        },
-        {
-            "trait_type": "Rarity",
-            "value": "Common"
-        }
-    ]
+    function _update(address to, uint256 tokenId, address auth)
+        internal
+        override(ERC721, ERC721Enumerable)
+        returns (address)
+    {
+        return super._update(to, tokenId, auth);
+    }
+
+    function _increaseBalance(address account, uint128 value)
+        internal
+        override(ERC721, ERC721Enumerable)
+    {
+        super._increaseBalance(account, value);
+    }
 }
-*/
