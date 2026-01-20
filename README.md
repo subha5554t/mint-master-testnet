@@ -1,73 +1,144 @@
-# Welcome to your Lovable project
+# NFT Minting DApp (Testnet)
 
-## Project info
+A beginner-friendly decentralized application for minting ERC-721 NFTs on the Sepolia testnet.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## 📋 Project Overview
 
-## How can I edit this code?
+This project demonstrates how to build a complete NFT minting DApp from scratch, including:
+- Solidity smart contract using OpenZeppelin standards
+- React frontend with MetaMask integration
+- Ethers.js for blockchain interactions
 
-There are several ways of editing your application.
+## 🛠 Tech Stack
 
-**Use Lovable**
+| Technology | Purpose |
+|------------|---------|
+| Solidity | Smart contract language |
+| OpenZeppelin | Secure contract libraries |
+| Remix IDE | Contract development & deployment |
+| React + TypeScript | Frontend framework |
+| Ethers.js v6 | Blockchain interactions |
+| MetaMask | Wallet connection |
+| Tailwind CSS | Styling |
+| Sepolia | Testnet network |
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## 📁 Project Structure
 
-Changes made via Lovable will be committed automatically to this repo.
+```
+nft-minting-dapp/
+├── contracts/
+│   └── NFT.sol                 # Solidity smart contract
+├── src/
+│   ├── components/
+│   │   ├── Header.tsx          # Navigation header
+│   │   ├── MintCard.tsx        # Main minting interface
+│   │   ├── WalletButton.tsx    # Wallet connection button
+│   │   ├── NetworkBadge.tsx    # Network status indicator
+│   │   ├── Features.tsx        # Feature cards section
+│   │   ├── HowItWorks.tsx      # Step-by-step guide
+│   │   └── Footer.tsx          # Page footer
+│   ├── hooks/
+│   │   ├── useWallet.ts        # Wallet connection logic
+│   │   └── useNFTContract.ts   # Contract interaction logic
+│   └── pages/
+│       └── Index.tsx           # Main page
+└── README.md
+```
 
-**Use your preferred IDE**
+---
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 📜 Smart Contract
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+The complete smart contract is in `contracts/NFT.sol`. Key features:
 
-Follow these steps:
+- **ERC-721 compliant** using OpenZeppelin standards
+- **mintNFT()** function callable by anyone
+- **tokenURI storage** for metadata
+- **Event emission** for tracking mints
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
+### Deployment Steps
+
+1. Open [Remix IDE](https://remix.ethereum.org)
+2. Create `contracts/NFT.sol` and paste the contract code
+3. Compile with Solidity 0.8.20
+4. Connect MetaMask (Sepolia network)
+5. Deploy and copy the contract address
+6. Update `src/hooks/useNFTContract.ts` with your address
+
+---
+
+## 🚀 How to Run
+
+### Prerequisites
+- Node.js 18+
+- MetaMask browser extension
+- Sepolia testnet ETH ([Get from faucet](https://sepoliafaucet.com))
+
+### Installation
+
+```bash
+# Clone the repository
 git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
 cd <YOUR_PROJECT_NAME>
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Install dependencies
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Configuration
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+After deploying the smart contract, update line 35 in `src/hooks/useNFTContract.ts`:
 
-**Use GitHub Codespaces**
+```typescript
+const CONTRACT_ADDRESS = '0xYOUR_DEPLOYED_CONTRACT_ADDRESS';
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+---
 
-## What technologies are used for this project?
+## 🔗 Important Links
 
-This project is built with:
+- **Sepolia Faucet**: https://sepoliafaucet.com
+- **Remix IDE**: https://remix.ethereum.org
+- **Sepolia Etherscan**: https://sepolia.etherscan.io
+- **MetaMask**: https://metamask.io
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+---
 
-## How can I deploy this project?
+## 📝 Testnet Details
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+| Property | Value |
+|----------|-------|
+| Network Name | Sepolia |
+| Chain ID | 11155111 |
+| Currency | SepoliaETH |
+| Block Explorer | https://sepolia.etherscan.io |
 
-## Can I connect a custom domain to my Lovable project?
+---
 
-Yes, you can!
+## ⚠️ Important Notes
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+1. **TESTNET ONLY** - Do not use real ETH
+2. **Update contract address** after deployment
+3. **Token URIs** should point to valid JSON metadata (IPFS recommended)
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+---
+
+## 📄 Sample Token Metadata
+
+```json
+{
+  "name": "My First NFT",
+  "description": "Minted on Sepolia testnet!",
+  "image": "ipfs://QmYourImageHash",
+  "attributes": [
+    { "trait_type": "Creator", "value": "Your Name" }
+  ]
+}
+```
+
+---
+
+Built with ❤️ for Web3 Learning
