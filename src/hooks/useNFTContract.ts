@@ -175,109 +175,6 @@ export function useNFTContract() {
 
   const isContractDeployed = CONTRACT_ADDRESS.length === 42 && CONTRACT_ADDRESS.startsWith('0x');
 
-  // Mint NFT with custom metadata
-  const mintNFT = useCallback(async (
-    name: string,
-    description: string,
-    imageUrl: string,
-    tokenURI: string = ''
-  ) => {
-    if (!window.ethereum) {
-      setMintState(prev => ({ ...prev, error: 'MetaMask is not installed' }));
-      return;
-    }
-
-    if (!isContractDeployed) {
-      setMintState(prev => ({
-        ...prev,
-        error: 'Contract not deployed yet. Please follow the deployment guide.',
-      }));
-      return;
-    }
-
-    setMintState({
-      isMinting: true,
-      transactionHash: null,
-      tokenId: null,
-      error: null,
-      success: false,
-    });
-
-    try {
-      const { ethers } = await import('ethers');
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-
-      // Create a data URI for the tokenURI if not provided
-      const finalTokenURI = tokenURI || `data:application/json;base64,${btoa(JSON.stringify({
-        name,
-        description,
-        image: imageUrl,
-        attributes: []
-      }))}`;
-
-      console.log('Minting NFT with params:', { finalTokenURI, name, description, imageUrl });
-      const tx = await contract.mintNFT(finalTokenURI, name, description, imageUrl);
-      
-      setMintState(prev => ({ ...prev, transactionHash: tx.hash }));
-      console.log('Transaction submitted:', tx.hash);
-
-      const receipt = await tx.wait();
-      console.log('Transaction confirmed:', receipt);
-      
-      // Parse token ID from Transfer event (ERC721 standard)
-      let tokenId: number | null = null;
-      for (const log of receipt.logs) {
-        try {
-          // Transfer event topic for ERC721
-          if (log.topics[0] === '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef') {
-            tokenId = parseInt(log.topics[3], 16);
-            break;
-          }
-        } catch (e) {
-          // Continue if this log doesn't match
-        }
-      }
-
-      setMintState({
-        isMinting: false,
-        transactionHash: tx.hash,
-        tokenId,
-        error: null,
-        success: true,
-      });
-
-      // Refresh NFT lists after successful mint
-      setTimeout(() => {
-        fetchAllNFTs();
-        fetchMyNFTs();
-      }, 2000);
-
-    } catch (error: any) {
-      console.error('Mint error:', error);
-      let errorMessage = 'Failed to mint NFT';
-
-      if (error.code === 4001 || error.code === 'ACTION_REJECTED') {
-        errorMessage = 'Transaction rejected by user';
-      } else if (error.code === -32603) {
-        errorMessage = 'Internal JSON-RPC error. Check if you have enough testnet ETH.';
-      } else if (error.message?.includes('insufficient funds')) {
-        errorMessage = 'Insufficient funds. Get testnet ETH from a Sepolia faucet.';
-      } else if (error.message) {
-        errorMessage = error.message.slice(0, 100);
-      }
-
-      setMintState({
-        isMinting: false,
-        transactionHash: null,
-        tokenId: null,
-        error: errorMessage,
-        success: false,
-      });
-    }
-  }, [isContractDeployed]);
-
   // Fetch total supply using multiple fallback methods
   const fetchTotalSupply = useCallback(async () => {
     if (!window.ethereum || !isContractDeployed) return;
@@ -287,7 +184,6 @@ export function useNFTContract() {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
       
-      // Try getTokenCounter first, then totalSupply as fallback
       let count = 0;
       try {
         count = Number(await contract.getTokenCounter());
@@ -314,7 +210,6 @@ export function useNFTContract() {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
       
-      // Get total supply
       let total = 0;
       try {
         total = Number(await contract.getTokenCounter());
@@ -336,7 +231,6 @@ export function useNFTContract() {
       setTotalSupply(total);
       const nfts: NFTData[] = [];
 
-      // Try getAllNFTs first (batch method)
       try {
         const result = await contract.getAllNFTs(0, Math.min(total, 50));
         for (let i = 0; i < result.tokenIds.length; i++) {
@@ -351,11 +245,9 @@ export function useNFTContract() {
           });
         }
       } catch {
-        // Fallback: fetch individually using nftMetadata mapping or tokenURI
         console.log('Using fallback individual fetch method');
         for (let i = 0; i < Math.min(total, 50); i++) {
           try {
-            // Try getNFTMetadata first
             let metadata;
             try {
               metadata = await contract.getNFTMetadata(i);
@@ -369,7 +261,6 @@ export function useNFTContract() {
                 tokenURI: metadata.uri || '',
               });
             } catch {
-              // Try nftMetadata mapping
               try {
                 metadata = await contract.nftMetadata(i);
                 const owner = await contract.ownerOf(i);
@@ -383,7 +274,6 @@ export function useNFTContract() {
                   tokenURI: '',
                 });
               } catch {
-                // Last resort: just get owner and tokenURI
                 try {
                   const owner = await contract.ownerOf(i);
                   const uri = await contract.tokenURI(i);
@@ -428,7 +318,6 @@ export function useNFTContract() {
       
       const nfts: NFTData[] = [];
 
-      // Try getOwnedTokens first
       try {
         const tokenIds = await contract.getOwnedTokens(address);
         for (const tokenId of tokenIds) {
@@ -445,7 +334,6 @@ export function useNFTContract() {
               owner: address,
             });
           } catch {
-            // Fallback to nftMetadata
             try {
               const metadata = await contract.nftMetadata(tokenId);
               nfts.push({
@@ -464,7 +352,6 @@ export function useNFTContract() {
           }
         }
       } catch {
-        // Fallback: Use balanceOf and tokenOfOwnerByIndex (ERC721Enumerable)
         console.log('Using ERC721Enumerable fallback for my NFTs');
         try {
           const balance = Number(await contract.balanceOf(address));
@@ -511,6 +398,106 @@ export function useNFTContract() {
     }
   }, [isContractDeployed]);
 
+  // Mint NFT with custom metadata
+  const mintNFT = useCallback(async (
+    name: string,
+    description: string,
+    imageUrl: string,
+    tokenURI: string = ''
+  ) => {
+    if (!window.ethereum) {
+      setMintState(prev => ({ ...prev, error: 'MetaMask is not installed' }));
+      return;
+    }
+
+    if (!isContractDeployed) {
+      setMintState(prev => ({
+        ...prev,
+        error: 'Contract not deployed yet. Please follow the deployment guide.',
+      }));
+      return;
+    }
+
+    setMintState({
+      isMinting: true,
+      transactionHash: null,
+      tokenId: null,
+      error: null,
+      success: false,
+    });
+
+    try {
+      const { ethers } = await import('ethers');
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+      const finalTokenURI = tokenURI || `data:application/json;base64,${btoa(JSON.stringify({
+        name,
+        description,
+        image: imageUrl,
+        attributes: []
+      }))}`;
+
+      console.log('Minting NFT with params:', { finalTokenURI, name, description, imageUrl });
+      const tx = await contract.mintNFT(finalTokenURI, name, description, imageUrl);
+      
+      setMintState(prev => ({ ...prev, transactionHash: tx.hash }));
+      console.log('Transaction submitted:', tx.hash);
+
+      const receipt = await tx.wait();
+      console.log('Transaction confirmed:', receipt);
+      
+      let tokenId: number | null = null;
+      for (const log of receipt.logs) {
+        try {
+          if (log.topics[0] === '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef') {
+            tokenId = parseInt(log.topics[3], 16);
+            break;
+          }
+        } catch (e) {
+          // Continue
+        }
+      }
+
+      setMintState({
+        isMinting: false,
+        transactionHash: tx.hash,
+        tokenId,
+        error: null,
+        success: true,
+      });
+
+      // Refresh after mint
+      setTimeout(() => {
+        fetchAllNFTs();
+        fetchMyNFTs();
+      }, 2000);
+
+    } catch (error: any) {
+      console.error('Mint error:', error);
+      let errorMessage = 'Failed to mint NFT';
+
+      if (error.code === 4001 || error.code === 'ACTION_REJECTED') {
+        errorMessage = 'Transaction rejected by user';
+      } else if (error.code === -32603) {
+        errorMessage = 'Internal JSON-RPC error. Check if you have enough testnet ETH.';
+      } else if (error.message?.includes('insufficient funds')) {
+        errorMessage = 'Insufficient funds. Get testnet ETH from a Sepolia faucet.';
+      } else if (error.message) {
+        errorMessage = error.message.slice(0, 100);
+      }
+
+      setMintState({
+        isMinting: false,
+        transactionHash: null,
+        tokenId: null,
+        error: errorMessage,
+        success: false,
+      });
+    }
+  }, [isContractDeployed, fetchAllNFTs, fetchMyNFTs]);
+
   // Add NFT to MetaMask wallet
   const addNFTToWallet = useCallback(async (tokenId: number, imageUrl?: string) => {
     if (!window.ethereum) {
@@ -518,7 +505,6 @@ export function useNFTContract() {
     }
 
     try {
-      // Get contract info
       const { ethers } = await import('ethers');
       const provider = new ethers.BrowserProvider(window.ethereum);
       const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
