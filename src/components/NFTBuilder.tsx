@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { ImageUpload } from '@/components/ImageUpload';
 import { useWallet } from '@/hooks/useWallet';
 import { useNFTContract } from '@/hooks/useNFTContract';
 import { 
@@ -32,14 +33,11 @@ export function NFTBuilder() {
     imageUrl: '',
     externalUrl: '',
   });
-  
-  const [previewError, setPreviewError] = useState(false);
 
   const canMint = isConnected && isCorrectNetwork && !isMinting && formData.name.trim();
 
   const handleInputChange = (field: keyof NFTFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    if (field === 'imageUrl') setPreviewError(false);
   };
 
   const handleMint = () => {
@@ -56,14 +54,6 @@ export function NFTBuilder() {
     setFormData({ name: '', description: '', imageUrl: '', externalUrl: '' });
   };
 
-  // Sample images for quick selection
-  const sampleImages = [
-    'https://images.unsplash.com/photo-1634973357973-f2ed2657db3c?w=400',
-    'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400',
-    'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=400',
-    'https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=400',
-  ];
-
   return (
     <div className="glass-card rounded-2xl p-8 max-w-2xl w-full animate-scale-in">
       {/* Header */}
@@ -77,11 +67,24 @@ export function NFTBuilder() {
         Build Your NFT
       </h2>
       <p className="text-muted-foreground text-center text-sm mb-8">
-        Create a unique NFT with custom name, description, and image
+        Upload your image and create a unique NFT on the blockchain
       </p>
 
       {!success ? (
         <div className="space-y-6">
+          {/* Image Upload Section */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-3">
+              <ImageIcon className="w-4 h-4 text-primary" />
+              NFT Image
+            </label>
+            <ImageUpload
+              value={formData.imageUrl}
+              onChange={(url) => handleInputChange('imageUrl', url)}
+              disabled={isMinting}
+            />
+          </div>
+
           {/* Name Input */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-2">
@@ -119,83 +122,29 @@ export function NFTBuilder() {
             </p>
           </div>
 
-          {/* Image URL Input */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-2">
-              <ImageIcon className="w-4 h-4 text-primary" />
-              Image URL
-            </label>
-            <input
-              type="url"
-              value={formData.imageUrl}
-              onChange={(e) => handleInputChange('imageUrl', e.target.value)}
-              placeholder="https://... or ipfs://..."
-              className="w-full px-4 py-3 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-              disabled={isMinting}
-            />
-            
-            {/* Quick Sample Images */}
-            <div className="mt-3">
-              <p className="text-xs text-muted-foreground mb-2">Or pick a sample image:</p>
-              <div className="grid grid-cols-4 gap-2">
-                {sampleImages.map((url, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => handleInputChange('imageUrl', url)}
-                    className={`aspect-square rounded-lg overflow-hidden border-2 transition-all hover:scale-105 ${
-                      formData.imageUrl === url ? 'border-primary' : 'border-border hover:border-primary/50'
-                    }`}
-                    disabled={isMinting}
-                  >
-                    <img src={url} alt={`Sample ${idx + 1}`} className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
+          {/* Advanced: Token URI (Collapsible) */}
+          <details className="group">
+            <summary className="flex items-center gap-2 text-sm font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+              <LinkIcon className="w-4 h-4" />
+              Advanced Options
+            </summary>
+            <div className="mt-3 pl-6">
+              <label className="text-xs text-muted-foreground mb-2 block">
+                Custom Token URI (Optional)
+              </label>
+              <input
+                type="url"
+                value={formData.externalUrl}
+                onChange={(e) => handleInputChange('externalUrl', e.target.value)}
+                placeholder="ipfs://... (leave empty to auto-generate)"
+                className="w-full px-4 py-3 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-sm"
+                disabled={isMinting}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Provide a custom IPFS metadata URL, or we'll generate one automatically
+              </p>
             </div>
-          </div>
-
-          {/* Image Preview */}
-          {formData.imageUrl && (
-            <div className="relative">
-              <label className="text-sm font-medium text-foreground mb-2 block">Preview</label>
-              <div className="aspect-video rounded-lg overflow-hidden bg-secondary border border-border">
-                {!previewError ? (
-                  <img
-                    src={formData.imageUrl}
-                    alt="NFT Preview"
-                    className="w-full h-full object-cover"
-                    onError={() => setPreviewError(true)}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                    <div className="text-center">
-                      <ImageIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">Unable to load image</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* External URL (Optional) */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-foreground mb-2">
-              <LinkIcon className="w-4 h-4 text-primary" />
-              Token URI (Optional)
-            </label>
-            <input
-              type="url"
-              value={formData.externalUrl}
-              onChange={(e) => handleInputChange('externalUrl', e.target.value)}
-              placeholder="ipfs://... (leave empty to auto-generate)"
-              className="w-full px-4 py-3 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-              disabled={isMinting}
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Custom IPFS metadata URL, or we'll generate one for you
-            </p>
-          </div>
+          </details>
 
           {/* Error Message */}
           {error && (
