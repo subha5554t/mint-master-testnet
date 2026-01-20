@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { logger } from '@/lib/logger';
+import '@/types/ethereum.d';
 
 // Sepolia testnet chain ID
 const SEPOLIA_CHAIN_ID = '0xaa36a7'; // 11155111 in hex
@@ -33,8 +35,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     error: null,
   });
 
-  // Check if MetaMask is installed
-  const isMetaMaskInstalled = typeof window !== 'undefined' && typeof window.ethereum !== 'undefined';
+  // Check if MetaMask is installed with safe access
+  const isMetaMaskInstalled = typeof window !== 'undefined' && 
+    typeof window.ethereum !== 'undefined' && 
+    typeof window.ethereum.request === 'function';
 
   // Format address for display
   const formatAddress = (address: string) => {
@@ -43,11 +47,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // Check current connection status
   const checkConnection = useCallback(async () => {
-    if (!isMetaMaskInstalled) return;
+    if (!isMetaMaskInstalled || !window.ethereum?.request) return;
 
     try {
-      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-      const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+      const accounts = await window.ethereum.request({ method: 'eth_accounts' }) as string[];
+      const chainId = await window.ethereum.request({ method: 'eth_chainId' }) as string;
       const chainIdDecimal = parseInt(chainId, 16);
 
       if (accounts.length > 0) {
@@ -61,13 +65,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         });
       }
     } catch (error) {
-      console.error('Error checking connection:', error);
+      logger.error('Error checking connection:', error);
     }
   }, [isMetaMaskInstalled]);
 
   // Connect wallet
   const connectWallet = useCallback(async () => {
-    if (!isMetaMaskInstalled) {
+    if (!isMetaMaskInstalled || !window.ethereum?.request) {
       setState(prev => ({
         ...prev,
         error: 'MetaMask is not installed. Please install MetaMask to continue.',
@@ -80,9 +84,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     try {
       const accounts = await window.ethereum.request({
         method: 'eth_requestAccounts',
-      });
+      }) as string[];
 
-      const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+      const chainId = await window.ethereum.request({ method: 'eth_chainId' }) as string;
       const chainIdDecimal = parseInt(chainId, 16);
 
       setState({
@@ -93,12 +97,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         isConnecting: false,
         error: null,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { code?: number };
       let errorMessage = 'Failed to connect wallet';
       
-      if (error.code === 4001) {
+      if (err.code === 4001) {
         errorMessage = 'Connection rejected. Please approve the connection in MetaMask.';
-      } else if (error.code === -32002) {
+      } else if (err.code === -32002) {
         errorMessage = 'Connection request pending. Please check MetaMask.';
       }
 
@@ -112,18 +117,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // Switch to Sepolia network
   const switchToSepolia = useCallback(async () => {
-    if (!isMetaMaskInstalled) return;
+    if (!isMetaMaskInstalled || !window.ethereum?.request) return;
 
     try {
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: SEPOLIA_CHAIN_ID }],
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { code?: number };
       // If the chain hasn't been added, add it
-      if (error.code === 4902) {
+      if (err.code === 4902) {
         try {
-          await window.ethereum.request({
+          await window.ethereum!.request({
             method: 'wallet_addEthereumChain',
             params: [
               {
@@ -140,14 +146,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             ],
           });
         } catch (addError) {
-          console.error('Error adding Sepolia network:', addError);
+          logger.error('Error adding Sepolia network:', addError);
           setState(prev => ({
             ...prev,
             error: 'Failed to add Sepolia network. Please add it manually in MetaMask.',
           }));
         }
       } else {
-        console.error('Error switching network:', error);
+        logger.error('Error switching network:', error);
         setState(prev => ({
           ...prev,
           error: 'Failed to switch network. Please switch to Sepolia manually.',
@@ -170,22 +176,24 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // Listen for account and chain changes
   useEffect(() => {
-    if (!isMetaMaskInstalled) return;
+    if (!isMetaMaskInstalled || !window.ethereum?.on || !window.ethereum?.removeListener) return;
 
-    const handleAccountsChanged = (accounts: string[]) => {
-      if (accounts.length === 0) {
+    const handleAccountsChanged = (accounts: unknown) => {
+      const accountsArray = accounts as string[];
+      if (accountsArray.length === 0) {
         disconnectWallet();
       } else {
         setState(prev => ({
           ...prev,
-          address: accounts[0],
+          address: accountsArray[0],
           isConnected: true,
         }));
       }
     };
 
-    const handleChainChanged = (chainId: string) => {
-      const chainIdDecimal = parseInt(chainId, 16);
+    const handleChainChanged = (chainId: unknown) => {
+      const chainIdStr = chainId as string;
+      const chainIdDecimal = parseInt(chainIdStr, 16);
       setState(prev => ({
         ...prev,
         chainId: chainIdDecimal,
@@ -200,8 +208,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     checkConnection();
 
     return () => {
-      window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-      window.ethereum.removeListener('chainChanged', handleChainChanged);
+      if (window.ethereum?.removeListener) {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+        window.ethereum.removeListener('chainChanged', handleChainChanged);
+      }
     };
   }, [isMetaMaskInstalled, checkConnection, disconnectWallet]);
 
@@ -227,11 +237,4 @@ export function useWallet() {
     throw new Error('useWallet must be used within a WalletProvider');
   }
   return context;
-}
-
-// Add ethereum type to window
-declare global {
-  interface Window {
-    ethereum: any;
-  }
 }

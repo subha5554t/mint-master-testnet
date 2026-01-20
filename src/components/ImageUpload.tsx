@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
-import { Upload, X, Image as ImageIcon, Camera, Link as LinkIcon } from 'lucide-react';
+import { Upload, X, Image as ImageIcon, Camera, Link as LinkIcon, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { validateImageUrl } from '@/lib/imageValidation';
 
 interface ImageUploadProps {
   value: string;
@@ -15,6 +16,7 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
   const [inputMode, setInputMode] = useState<InputMode>('upload');
   const [urlInput, setUrlInput] = useState('');
   const [previewError, setPreviewError] = useState(false);
+  const [urlError, setUrlError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -64,9 +66,28 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
   }, [processFile]);
 
   const handleUrlSubmit = () => {
-    if (urlInput.trim()) {
-      onChange(urlInput.trim());
-      setPreviewError(false);
+    if (!urlInput.trim()) {
+      setUrlError('Please enter a URL');
+      return;
+    }
+    
+    const validation = validateImageUrl(urlInput.trim());
+    
+    if (!validation.isValid) {
+      setUrlError(validation.error || 'Invalid URL');
+      return;
+    }
+    
+    setUrlError(null);
+    onChange(validation.sanitizedUrl || urlInput.trim());
+    setPreviewError(false);
+  };
+
+  const handleUrlChange = (value: string) => {
+    setUrlInput(value);
+    // Clear error when user starts typing
+    if (urlError) {
+      setUrlError(null);
     }
   };
 
@@ -77,6 +98,7 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    setUrlError(null);
   };
 
   // Sample images for quick selection
@@ -88,6 +110,13 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
     'https://images.unsplash.com/photo-1614850523459-c2f4c699c52e?w=400',
     'https://images.unsplash.com/photo-1569437061241-a848be43cc82?w=400',
   ];
+
+  // Validate sample image URLs (these are trusted sources)
+  const handleSampleImageClick = (url: string) => {
+    setUrlError(null);
+    onChange(url);
+    setPreviewError(false);
+  };
 
   return (
     <div className="space-y-4">
@@ -201,10 +230,12 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
             <input
               type="url"
               value={urlInput}
-              onChange={(e) => setUrlInput(e.target.value)}
+              onChange={(e) => handleUrlChange(e.target.value)}
               placeholder="https://... or ipfs://..."
               disabled={disabled}
-              className="flex-1 px-4 py-3 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+              className={`flex-1 px-4 py-3 rounded-lg bg-secondary border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all ${
+                urlError ? 'border-destructive' : 'border-border'
+              }`}
               onKeyDown={(e) => e.key === 'Enter' && handleUrlSubmit()}
             />
             <Button
@@ -216,6 +247,14 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
               Add
             </Button>
           </div>
+          
+          {/* URL Validation Error */}
+          {urlError && (
+            <div className="flex items-center gap-2 text-sm text-destructive">
+              <AlertCircle className="w-4 h-4" />
+              {urlError}
+            </div>
+          )}
 
           {/* Sample Images Grid */}
           <div>
@@ -225,10 +264,7 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
                 <button
                   key={idx}
                   type="button"
-                  onClick={() => {
-                    onChange(url);
-                    setPreviewError(false);
-                  }}
+                  onClick={() => handleSampleImageClick(url)}
                   disabled={disabled}
                   className="aspect-square rounded-lg overflow-hidden border-2 border-border hover:border-primary/50 transition-all hover:scale-105 disabled:opacity-50"
                 >

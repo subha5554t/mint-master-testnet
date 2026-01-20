@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
+import { logger } from '@/lib/logger';
+import '@/types/ethereum.d';
 
 // Your deployed contract address on Sepolia
 const CONTRACT_ADDRESS = '0x358AA13c52544ECCEF6B0ADD0f801012ADAD5eE3';
@@ -190,13 +192,13 @@ export function useNFTContract() {
       } catch {
         try {
           count = Number(await contract.totalSupply());
-        } catch (e) {
-          console.log('Could not fetch token count');
+        } catch {
+          logger.log('Could not fetch token count');
         }
       }
       setTotalSupply(count);
     } catch (error) {
-      console.error('Error fetching total supply:', error);
+      logger.error('Error fetching total supply:', error);
     }
   }, [isContractDeployed]);
 
@@ -217,7 +219,7 @@ export function useNFTContract() {
         try {
           total = Number(await contract.totalSupply());
         } catch {
-          console.log('Could not get total supply');
+          logger.log('Could not get total supply');
         }
       }
       
@@ -245,7 +247,7 @@ export function useNFTContract() {
           });
         }
       } catch {
-        console.log('Using fallback individual fetch method');
+        logger.log('Using fallback individual fetch method');
         for (let i = 0; i < Math.min(total, 50); i++) {
           try {
             let metadata;
@@ -286,20 +288,20 @@ export function useNFTContract() {
                     creator: owner,
                     tokenURI: uri,
                   });
-                } catch (e) {
-                  console.log(`Token ${i} may not exist`);
+                } catch {
+                  logger.log(`Token ${i} may not exist`);
                 }
               }
             }
           } catch (e) {
-            console.log(`Error fetching token ${i}:`, e);
+            logger.log(`Error fetching token ${i}:`, e);
           }
         }
       }
 
       setAllNFTs(nfts.reverse());
     } catch (error) {
-      console.error('Error fetching NFTs:', error);
+      logger.error('Error fetching NFTs:', error);
     } finally {
       setIsLoadingNFTs(false);
     }
@@ -347,12 +349,12 @@ export function useNFTContract() {
                 owner: address,
               });
             } catch (e) {
-              console.error('Error fetching metadata for token', tokenId, e);
+              logger.error('Error fetching metadata for token', tokenId, e);
             }
           }
         }
       } catch {
-        console.log('Using ERC721Enumerable fallback for my NFTs');
+        logger.log('Using ERC721Enumerable fallback for my NFTs');
         try {
           const balance = Number(await contract.balanceOf(address));
           for (let i = 0; i < balance; i++) {
@@ -384,17 +386,17 @@ export function useNFTContract() {
                 });
               }
             } catch (e) {
-              console.error('Error fetching token at index', i, e);
+              logger.error('Error fetching token at index', i, e);
             }
           }
         } catch (e) {
-          console.error('ERC721Enumerable fallback failed:', e);
+          logger.error('ERC721Enumerable fallback failed:', e);
         }
       }
 
       setMyNFTs(nfts.reverse());
     } catch (error) {
-      console.error('Error fetching my NFTs:', error);
+      logger.error('Error fetching my NFTs:', error);
     }
   }, [isContractDeployed]);
 
@@ -439,14 +441,14 @@ export function useNFTContract() {
         attributes: []
       }))}`;
 
-      console.log('Minting NFT with params:', { finalTokenURI, name, description, imageUrl });
+      logger.log('Minting NFT with params:', { finalTokenURI, name, description, imageUrl });
       const tx = await contract.mintNFT(finalTokenURI, name, description, imageUrl);
       
       setMintState(prev => ({ ...prev, transactionHash: tx.hash }));
-      console.log('Transaction submitted:', tx.hash);
+      logger.log('Transaction submitted:', tx.hash);
 
       const receipt = await tx.wait();
-      console.log('Transaction confirmed:', receipt);
+      logger.log('Transaction confirmed:', receipt);
       
       let tokenId: number | null = null;
       for (const log of receipt.logs) {
@@ -474,18 +476,19 @@ export function useNFTContract() {
         fetchMyNFTs();
       }, 2000);
 
-    } catch (error: any) {
-      console.error('Mint error:', error);
+    } catch (error: unknown) {
+      logger.error('Mint error:', error);
       let errorMessage = 'Failed to mint NFT';
+      const err = error as { code?: number | string; message?: string };
 
-      if (error.code === 4001 || error.code === 'ACTION_REJECTED') {
+      if (err.code === 4001 || err.code === 'ACTION_REJECTED') {
         errorMessage = 'Transaction rejected by user';
-      } else if (error.code === -32603) {
+      } else if (err.code === -32603) {
         errorMessage = 'Internal JSON-RPC error. Check if you have enough testnet ETH.';
-      } else if (error.message?.includes('insufficient funds')) {
+      } else if (err.message?.includes('insufficient funds')) {
         errorMessage = 'Insufficient funds. Get testnet ETH from a Sepolia faucet.';
-      } else if (error.message) {
-        errorMessage = error.message.slice(0, 100);
+      } else if (err.message) {
+        errorMessage = err.message.slice(0, 100);
       }
 
       setMintState({
@@ -499,8 +502,8 @@ export function useNFTContract() {
   }, [isContractDeployed, fetchAllNFTs, fetchMyNFTs]);
 
   // Add NFT to MetaMask wallet
-  const addNFTToWallet = useCallback(async (tokenId: number, imageUrl?: string) => {
-    if (!window.ethereum) {
+  const addNFTToWallet = useCallback(async (tokenId: number, imageUrl?: string): Promise<boolean> => {
+    if (!window.ethereum?.request) {
       throw new Error('MetaMask is not installed');
     }
 
@@ -527,11 +530,11 @@ export function useNFTContract() {
             image: imageUrl || undefined,
           },
         },
-      });
+      }) as boolean;
 
       return wasAdded;
     } catch (error) {
-      console.error('Error adding NFT to wallet:', error);
+      logger.error('Error adding NFT to wallet:', error);
       throw error;
     }
   }, []);
