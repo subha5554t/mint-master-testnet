@@ -13,8 +13,10 @@ import {
   Palette,
   Type,
   FileText,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Wallet
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface NFTFormData {
   name: string;
@@ -25,7 +27,8 @@ interface NFTFormData {
 
 export function NFTBuilder() {
   const { isConnected, isCorrectNetwork } = useWallet();
-  const { isMinting, transactionHash, tokenId, error, success, mintNFT, resetMintState } = useNFTContract();
+  const { isMinting, transactionHash, tokenId, error, success, mintNFT, resetMintState, addNFTToWallet, fetchAllNFTs, fetchMyNFTs } = useNFTContract();
+  const [isAddingToWallet, setIsAddingToWallet] = useState(false);
   
   const [formData, setFormData] = useState<NFTFormData>({
     name: '',
@@ -52,6 +55,25 @@ export function NFTBuilder() {
   const handleReset = () => {
     resetMintState();
     setFormData({ name: '', description: '', imageUrl: '', externalUrl: '' });
+    // Refresh the galleries
+    fetchAllNFTs();
+    fetchMyNFTs();
+  };
+
+  const handleAddToWallet = async () => {
+    if (tokenId === null) return;
+    setIsAddingToWallet(true);
+    try {
+      const result = await addNFTToWallet(tokenId, formData.imageUrl);
+      if (result) {
+        toast.success(`NFT #${tokenId} added to MetaMask!`);
+      }
+    } catch (error) {
+      console.error('Failed to add NFT:', error);
+      toast.error('Failed to add NFT to wallet');
+    } finally {
+      setIsAddingToWallet(false);
+    }
   };
 
   return (
@@ -239,6 +261,27 @@ export function NFTBuilder() {
               View Transaction on Etherscan
             </a>
           )}
+
+          {/* Add to MetaMask Button */}
+          <Button
+            variant="default"
+            size="xl"
+            onClick={handleAddToWallet}
+            disabled={isAddingToWallet || tokenId === null}
+            className="w-full gap-2"
+          >
+            {isAddingToWallet ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Adding to MetaMask...
+              </>
+            ) : (
+              <>
+                <Wallet className="w-5 h-5" />
+                Add NFT to MetaMask
+              </>
+            )}
+          </Button>
 
           <Button
             variant="outline"

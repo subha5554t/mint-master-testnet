@@ -9,8 +9,11 @@ import {
   Image as ImageIcon, 
   ExternalLink,
   RefreshCw,
-  Layers
+  Layers,
+  Wallet,
+  CheckCircle2
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 type TabType = 'all' | 'mine';
 
@@ -23,7 +26,9 @@ export function NFTGallery() {
     fetchAllNFTs, 
     fetchMyNFTs, 
     totalSupply,
-    isContractDeployed 
+    isContractDeployed,
+    addNFTToWallet,
+    contractAddress
   } = useNFTContract();
   
   const [activeTab, setActiveTab] = useState<TabType>('all');
@@ -39,6 +44,7 @@ export function NFTGallery() {
   const handleRefresh = () => {
     fetchAllNFTs();
     if (isConnected) fetchMyNFTs();
+    toast.success('Refreshing NFT gallery...');
   };
 
   if (!isContractDeployed) {
@@ -151,7 +157,14 @@ export function NFTGallery() {
         {displayNFTs.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 max-w-6xl mx-auto">
             {displayNFTs.map((nft) => (
-              <NFTCard key={nft.tokenId} nft={nft} formatAddress={formatAddress} />
+              <NFTCard 
+                key={nft.tokenId} 
+                nft={nft} 
+                formatAddress={formatAddress}
+                contractAddress={contractAddress}
+                addNFTToWallet={addNFTToWallet}
+                isOwned={activeTab === 'mine'}
+              />
             ))}
           </div>
         )}
@@ -160,8 +173,34 @@ export function NFTGallery() {
   );
 }
 
-function NFTCard({ nft, formatAddress }: { nft: NFTData; formatAddress: (addr: string) => string }) {
+interface NFTCardProps {
+  nft: NFTData;
+  formatAddress: (addr: string) => string;
+  contractAddress: string;
+  addNFTToWallet: (tokenId: number, imageUrl?: string) => Promise<boolean>;
+  isOwned: boolean;
+}
+
+function NFTCard({ nft, formatAddress, contractAddress, addNFTToWallet, isOwned }: NFTCardProps) {
   const [imageError, setImageError] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [wasAdded, setWasAdded] = useState(false);
+
+  const handleAddToWallet = async () => {
+    setIsAdding(true);
+    try {
+      const result = await addNFTToWallet(nft.tokenId, nft.imageUrl);
+      if (result) {
+        setWasAdded(true);
+        toast.success(`NFT #${nft.tokenId} added to MetaMask!`);
+      }
+    } catch (error: any) {
+      console.error('Failed to add NFT:', error);
+      toast.error('Failed to add NFT to wallet');
+    } finally {
+      setIsAdding(false);
+    }
+  };
 
   return (
     <div className="glass-card rounded-xl overflow-hidden group hover:scale-[1.02] transition-transform duration-300">
@@ -184,6 +223,13 @@ function NFTCard({ nft, formatAddress }: { nft: NFTData; formatAddress: (addr: s
         <div className="absolute top-3 left-3 px-2 py-1 rounded-full bg-background/80 backdrop-blur-sm text-xs font-medium">
           #{nft.tokenId}
         </div>
+
+        {/* Owned Badge */}
+        {isOwned && (
+          <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-primary/90 backdrop-blur-sm text-xs font-medium text-primary-foreground">
+            Owned
+          </div>
+        )}
       </div>
 
       {/* Content */}
@@ -198,14 +244,14 @@ function NFTCard({ nft, formatAddress }: { nft: NFTData; formatAddress: (addr: s
           </p>
         )}
 
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
           <span className="flex items-center gap-1">
             <User className="w-3 h-3" />
             {formatAddress(nft.creator)}
           </span>
           
           <a
-            href={`https://sepolia.etherscan.io/token/${nft.tokenId}`}
+            href={`https://sepolia.etherscan.io/token/${contractAddress}?a=${nft.tokenId}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-primary hover:underline flex items-center gap-1"
@@ -214,6 +260,32 @@ function NFTCard({ nft, formatAddress }: { nft: NFTData; formatAddress: (addr: s
             <ExternalLink className="w-3 h-3" />
           </a>
         </div>
+
+        {/* Add to Wallet Button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleAddToWallet}
+          disabled={isAdding || wasAdded}
+          className="w-full gap-2"
+        >
+          {wasAdded ? (
+            <>
+              <CheckCircle2 className="w-4 h-4 text-green-500" />
+              Added to MetaMask
+            </>
+          ) : isAdding ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Adding...
+            </>
+          ) : (
+            <>
+              <Wallet className="w-4 h-4" />
+              Add to MetaMask
+            </>
+          )}
+        </Button>
       </div>
     </div>
   );
