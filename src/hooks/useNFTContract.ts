@@ -81,8 +81,8 @@ const CONTRACT_ABI = [
   }
 ];
 
-// IMPORTANT: Replace this with your deployed contract address
-const CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000';
+// Your deployed contract address on Sepolia
+const CONTRACT_ADDRESS = '0x358AA13c52544ECCEF6B0ADD0f801012ADAD5eE3';
 
 export interface NFTData {
   tokenId: number;
@@ -116,7 +116,7 @@ export function useNFTContract() {
   const [myNFTs, setMyNFTs] = useState<NFTData[]>([]);
   const [isLoadingNFTs, setIsLoadingNFTs] = useState(false);
 
-  const isContractDeployed = CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000';
+  const isContractDeployed = CONTRACT_ADDRESS.length === 42 && CONTRACT_ADDRESS.startsWith('0x');
 
   // Mint NFT with custom metadata
   const mintNFT = useCallback(async (
