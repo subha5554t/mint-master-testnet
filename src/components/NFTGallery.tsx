@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNFTContract, NFTData } from '@/hooks/useNFTContract';
-import { useWallet } from '@/hooks/useWallet';
+import { useWallet } from '@/contexts/WalletContext';
 import { Button } from '@/components/ui/button';
 import { 
   Grid3X3, 

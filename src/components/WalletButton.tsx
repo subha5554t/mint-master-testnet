@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { useWallet } from '@/hooks/useWallet';
+import { useWallet } from '@/contexts/WalletContext';
 import { Wallet, LogOut, AlertTriangle, ExternalLink } from 'lucide-react';
 
 export function WalletButton() {

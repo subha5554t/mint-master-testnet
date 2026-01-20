@@ -4,7 +4,7 @@ import { NFTGallery } from '@/components/NFTGallery';
 import { Features } from '@/components/Features';
 import { HowItWorks } from '@/components/HowItWorks';
 import { Footer } from '@/components/Footer';
-import { useWallet } from '@/hooks/useWallet';
+import { useWallet } from '@/contexts/WalletContext';
 import { useNFTContract } from '@/hooks/useNFTContract';
 
 const Index = () => {

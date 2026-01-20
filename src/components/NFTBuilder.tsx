@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ImageUpload } from '@/components/ImageUpload';
-import { useWallet } from '@/hooks/useWallet';
+import { useWallet } from '@/contexts/WalletContext';
 import { useNFTContract } from '@/hooks/useNFTContract';
 import { 
   Sparkles, 
